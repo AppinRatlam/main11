@@ -1,0 +1,26 @@
+<body>
+<script type="text/javascript">
+var configuration = {
+  widgetId: "{{ widget_id }}",
+  tokenAuth: "{{ token_auth }}",
+  identifier: "<enter mobile number",
+  exposeMethods: "<true | false> (optional>",  // When true will expose the methods for OTP verification. Refer 'How it works?' for more details
+  success: (data) => {
+    window.location.href = "{% url 'otp_verify' %}";
+      // get verified token in response
+      console.log('success response', data);
+      alert("otp verified")
+  },
+  failure: (error) => {
+      // handle error
+      console.log('failure reason', error);
+  },
+};
+</script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" onload="initSendOTP(configuration)" src="https://verify.msg91.com/otp-provider.js"> </script>
+</body> 
+
+
+
+ 

@@ -1,0 +1,32 @@
+{% extends 'vault/base.html' %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted">Total Held</h6>
+        <h3>₹ {{ total_held }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted">Total Returned</h6>
+        <h3>₹ {{ total_returned }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted">Deposits Today</h6>
+        <h3>{{ count_today }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mt-4">
+  <a class="btn btn-primary" href="/intake/">Create New Deposit</a>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'vault/base.html' %}
+{% block content %}
+<h3>Mark Returned</h3>
+<div class="card p-3">
+  <p><strong>Token:</strong> {{ d.token }}</p>
+  <p><strong>Name:</strong> {{ d.devotee.name }} ({{ d.devotee.phone }})</p>
+  <p><strong>Amount:</strong> ₹ {{ d.amount }}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-success">Confirm Return</button>
+    <a class="btn btn-secondary" href="/receipt/{{ d.token }}/">Cancel</a>
+  </form>
+</div>
+{% endblock %}

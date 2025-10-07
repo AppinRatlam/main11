@@ -1,0 +1,54 @@
+{% extends 'vault/base.html' %}
+{% block content %}
+<h3>Report</h3>
+<form class="row g-2 mb-3">
+  <div class="col-md-2">
+    <input class="form-control" name="year" value="{{ year }}" placeholder="Year e.g. 2025">
+  </div>
+  <div class="col-md-3">
+   <select class="form-select" name="status">
+  <option value="" {% if not status %}selected{% endif %}>All</option>
+  <option value="HELD" {% if status == "HELD" %}selected{% endif %}>Held</option>
+  <option value="RETURNED" {% if status == "RETURNED" %}selected{% endif %}>Returned</option>
+  <option value="CANCELLED" {% if status == "CANCELLED" %}selected{% endif %}>Cancelled</option>
+</select>
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-primary">Apply</button>
+  </div>
+  <div class="col-md-3">
+    <a class="btn btn-outline-secondary" href="/export.csv?year={{ year }}&status={{ status }}">Export CSV</a>
+  </div>
+</form>
+
+<div class="mb-3">
+  <strong>Total Records:</strong> {{ total_count }} |
+  <strong>Total Amount:</strong> ₹ {{ total_amount }}
+</div>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-sm">
+    <thead><tr><th>Token</th><th>Name</th><th>Phone</th><th>Aadhaar Last4</th><th>Currency</th>    <th>Quantity</th> <!-- NEW -->
+    <th>Form Filler</th><th>Amount</th><th>Status</th><th>Received</th><th>Returned</th></tr></thead>
+    <tbody>
+    {% for d in qs %}
+      <tr>
+        <td><a href="/receipt/{{ d.token }}/">{{ d.token }}</a></td>
+        <td>{{ d.devotee.name }}</td>
+        <td>{{ d.devotee.phone }}</td>
+        <td>{{ d.devotee.aadhaar_last4 }}</td>
+        <td>₹ {{ d.amount }}</td>
+        <td>{{ d.status }}</td>
+        <td>{{ d.received_at|date:"d-M-Y H:i" }}</td>
+        <td>{% if d.returned_at %}{{ d.returned_at|date:"d-M-Y H:i" }}{% endif %}</td>
+            <td>{{ d.comment_choice }}</td> <!-- NEW -->
+    <td>{{ d.form_filler_name }}</td> <!-- NEW -->
+        <td>{{ deposit.quantity }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8">No data</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

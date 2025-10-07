@@ -1,0 +1,134 @@
+{% extends 'vault/base.html' %}
+{% block content %}
+
+<div class="no-print mb-3">
+  <a class="btn btn-secondary" href="javascript:print()">Print Receipt</a>
+
+  <!-- OTP Button -->
+  <!-- <button class="btn btn-warning" id="mark-returned-otp-btn" onclick="check()">
+    Mark Returned (with OTP)
+  </button> -->
+ 
+ <button id="otpButton" class="btn btn-primary">Verify via OTP</button>
+
+
+</div>
+
+<div class="card p-4 shadow-sm">
+  <h4 class="text-center mb-3">Mahalakshmi Temple, Ratlam (M.P.)</h4>
+  <h5 class="text-center mb-4">Deposit Token / Receipt</h5>
+
+  <div class="row">
+    <div class="col-md-6"><strong>Token:</strong> {{ d.token }}</div>
+    <div class="col-md-6 text-md-end"><strong>Date:</strong> {{ d.received_at|date:"d-M-Y H:i" }}</div>
+  </div>
+  <hr/>
+  <p><strong>Name:</strong> {{ d.devotee.name }}</p>
+  <p><strong>Phone:</strong> {{ d.devotee.phone }}</p>
+  <p><strong>Aadhaar (Last 4):</strong> {{ d.devotee.aadhaar_last4 }}</p>
+  <p><strong>Address:</strong> {{ d.devotee.address }}</p>
+  <p><strong>Comment:</strong> {{ d.comment_choice }}</p>
+  <p><strong>Quantity:</strong> {{ d.quantity }}</p>
+  <p><strong>Form Filler Name:</strong> {{ d.form_filler_name }}</p>
+  <p><strong>Amount:</strong> ₹ {{ d.amount }}</p>
+  <p><strong>Diwali Year:</strong> {{ d.diwali_year }}</p>
+  <p><strong>Status:</strong> {{ d.status }}</p>
+  {% if d.returned_at %}
+  <p><strong>Returned At:</strong> {{ d.returned_at|date:"d-M-Y H:i" }}</p>
+  {% endif %}
+
+  <hr/>
+  <p class="small">
+    Note: Amount will be returned after Diwali Pooja as per temple ritual. Please keep this token safe.
+    Temple is not responsible for any loss due to sharing of Aadhaar or phone. Data stored securely; Aadhaar is not printed in full.
+  </p>
+</div>
+
+
+<script type="text/javascript">
+//   function check() {
+
+    var configuration = {
+  widgetId: "{{ widget_id }}",
+  tokenAuth: "{{ token_auth }}",
+  identifier: "<enter mobile number",
+  exposeMethods: "<true | false> (optional>",  // When true will expose the methods for OTP verification. Refer 'How it works?' for more details
+  success: (data) => {
+   
+      // get verified token in response
+      console.log('success response', data);
+      alert("otp verified")
+       window.location.href = "{% url 'return_verify_otp' deposit_id=d.id %}";
+  },
+  failure: (error) => {
+      // handle error
+      console.log('failure reason', error);
+  },
+};
+    
+//   }
+
+  
+// var configuration = {
+//   widgetId: "{{ widget_id }}",
+//   tokenAuth: "{{ token_auth }}",
+//   identifier: "<enter mobile number",
+//   exposeMethods: "<true | false> (optional>",  // When true will expose the methods for OTP verification. Refer 'How it works?' for more details
+//   success: (data) => {
+   
+//       // get verified token in response
+//       console.log('success response', data);
+//       alert("otp verified")
+//        window.location.href = "{% url 'return_verify_otp' deposit_id=d.id %}";
+//   },
+//   failure: (error) => {
+//       // handle error
+//       console.log('failure reason', error);
+//   },
+// };
+</script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" onload="initSendOTP(configuration)" src="https://verify.msg91.com/otp-provider.js"> </script>
+<!-- MSG91 OTP script -->
+<!-- <script src="https://verify.msg91.com/otp-provider.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("mark-returned-otp-btn");
+
+    btn.addEventListener("click", function(e) {
+        e.preventDefault();
+
+        const phone = "{{ d.devotee.phone }}".trim();
+        if (!phone || phone.length < 10) {
+            alert("Invalid phone number.");
+            return;
+        }
+
+        if (typeof initSendOTP !== "function") {
+            alert("OTP widget script not loaded yet.");
+            return;
+        }
+
+        initSendOTP({
+            widgetId: "{{ widget_id }}",
+            tokenAuth: "{{ token_auth }}",
+            identifier: "+91" + phone,
+            showOtp: true,       // important: this triggers the popup
+            exposeMethods: true,
+            success: function(data) {
+                alert("OTP Verified Successfully!");
+                // Redirect to Django view to mark returned
+                window.location.href = "{% url 'return_verify_otp' deposit_id=d.id %}";
+            },
+            failure: function(err) {
+                alert("OTP verification failed: " + JSON.stringify(err));
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %} -->
+
+
