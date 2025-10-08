@@ -11,8 +11,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'nikhilpatidar151@gmail.com'   # temple official email
-EMAIL_HOST_PASSWORD = 'odil qevq dsqq pxkc'
+EMAIL_HOST_USER = 'mahalaxmijikabadamandir@gmail.com'   # temple official email
+EMAIL_HOST_PASSWORD = 'mgjz hxxq gujd zbiy'
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'

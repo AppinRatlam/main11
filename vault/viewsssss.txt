@@ -1,14 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Sum, Q
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
-from django.db import IntegrityError
 import csv
-
+from django.db import IntegrityError
 from .forms import IntakeForm
 from .models import Deposit, Devotee
 from .utils import next_token
@@ -34,38 +33,46 @@ def user_logout(request):
 # ---------------- Deposit Intake ----------------
 @login_required(login_url='/login/')
 def intake(request):
+    """
+    Intake form page. Stores data in session and redirects to OTP page.
+    """
     if request.method == 'POST':
         form = IntakeForm(request.POST)
         if form.is_valid():
+            # Copy cleaned data and convert Decimal to str for session storage
             cleaned_data = form.cleaned_data.copy()
             if 'amount' in cleaned_data:
                 cleaned_data['amount'] = str(cleaned_data['amount'])
             if 'quantity' in cleaned_data:
                 cleaned_data['quantity'] = str(cleaned_data['quantity'])
+
+            # Store in session
             request.session['pending_deposit'] = cleaned_data
+
+            # Redirect to OTP page
             return redirect('otp')
     else:
         form = IntakeForm(initial={'diwali_year': timezone.localdate().year})
+
     return render(request, 'vault/intake.html', {'form': form})
 
 
 # ---------------- OTP Page ----------------
 @login_required(login_url='/login/')
 def otp(request):
+    """
+    Render MSG91 OTP widget page.
+    """
     context = {
-        "widget_id": "356a6568356a343732333939",
-        "token_auth": "472099TjSVarLM2l68e2193bP1"
+        "widget_id": "356a6568356a343732333939",       # Secret: move to settings/env
+        "token_auth": "472099TjSVarLM2l68e2193bP1"     # Secret: move to settings/env
     }
     return render(request, "vault/otp_page.html", context)
 
 
-# ---------------- OTP Verification for Deposit ----------------
+# ---------------- OTP Verification ----------------
 @login_required(login_url='/login/')
 def otp_verify(request):
-    """
-    Called after MSG91 OTP verification.
-    Always creates a new devotee and deposit, sends email, and redirects to receipt.
-    """
     pending = request.session.get('pending_deposit')
     if not pending:
         messages.error(request, "No deposit data found. Please fill the form again.")
@@ -77,14 +84,76 @@ def otp_verify(request):
     email = pending.get('email')
     address = pending.get('address', '')
 
-    # Always create a new Devotee (ignore duplicates)
-    devotee = Devotee.objects.create(
-        phone=phone,
-        name=name,
-        aadhaar_last4=aadhaar_last4,
-        address=address,
-        email=email
-    )
+    # devotee = Devotee.objects.filter(
+    #     Q(aadhaar_last4=aadhaar_last4) | Q(phone=phone)
+    # ).first()
+
+    # if devotee:
+    #     # Update details if changed
+    #     updated = False
+    #     if name and devotee.name != name:
+    #         devotee.name = name
+    #         updated = True
+    #     if address and devotee.address != address:
+    #         devotee.address = address
+    #         updated = True
+    #     if email and devotee.email != email:
+    #         devotee.email = email
+    #         updated = True
+    #     if updated:
+    #         devotee.save()
+    # else:
+    #     # Create new devotee if none exists
+    #     devotee = Devotee.objects.create(
+    #         phone=phone,
+    #         name=name,
+    #         aadhaar_last4=aadhaar_last4,
+    #         address=address,
+    #         email=email
+    #     )
+
+    # # Try to find existing devotee by Aadhaar hash first
+    # devotee = None
+    # if aadhaar_last4:
+    #     devotee = Devotee.objects.filter(aadhaar_last4=aadhaar_last4).first()
+
+    # # If not found by Aadhaar, fallback to phone
+    # if not devotee:
+    #     devotee = Devotee.objects.filter(phone=phone).first()
+
+    # # if devotee:
+    # #     # Update email if empty
+    # #     if (not devotee.email or devotee.email.strip() == "") and email:
+    # #         devotee.email = email
+    # #         devotee.save()
+    # if devotee:
+    # # Update devotee info if changed
+    #     updated = False
+    #     if devotee.name != name and name:
+    #         devotee.name = name
+    #         updated = True
+    #     if devotee.address != address and address:
+    #         devotee.address = address
+    #         updated = True
+    #     if (not devotee.email or devotee.email.strip() == "") and email:
+    #         devotee.email = email
+    #         updated = True
+    #     if updated:
+    #         devotee.save()
+
+    # else:
+    #     # Create new devotee safely
+    #     try:
+    #         devotee = Devotee.objects.create(
+    #             phone=phone,
+    #             name=name,
+    #             aadhaar_last4=aadhaar_last4,
+    #             address=address,
+    #             email=email
+    #         )
+    #     except IntegrityError:
+    #         # If Aadhaar hash already exists, get the existing one
+    #         devotee = Devotee.objects.get(aadhaar_last4=aadhaar_last4)
 
     # Create Deposit
     deposit = Deposit.objects.create(
@@ -100,85 +169,74 @@ def otp_verify(request):
     )
 
     # Optional: send email
-    if email:
+    if devotee.email:
         try:
             send_mail(
                 subject="Mahalakshmi Temple - Token Number",
-                message=f"Dear {name},\n\n"
+                message=f"Dear {devotee.name},\n\n"
                         f"Your token number is {deposit.token}.\n"
                         f"Amount Deposited: ₹{deposit.amount}\n"
                         f"Year: {deposit.diwali_year}\n\n"
                         f"Please keep this safe. Jai Maa Mahalakshmi 🙏",
                 from_email="your_email@gmail.com",
-                recipient_list=[email],
+                recipient_list=[devotee.email],
                 fail_silently=False,
             )
         except Exception as e:
             print("Email sending failed:", e)
 
-    # Clear session
     del request.session['pending_deposit']
 
     return redirect('receipt', token=deposit.token)
-
-# @login_required(login_url='/login/')
 # def otp_verify(request):
+#     """
+#     Called after MSG91 OTP verification.
+#     Saves deposit, generates token, sends email, redirects to receipt.
+#     """
 #     pending = request.session.get('pending_deposit')
 #     if not pending:
 #         messages.error(request, "No deposit data found. Please fill the form again.")
 #         return redirect('intake')
 
+#     # Get or create the devotee
 #     phone = pending.get('phone')
 #     name = pending.get('name')
 #     aadhaar_last4 = pending.get('aadhaar_last4', '')
 #     email = pending.get('email')
 #     address = pending.get('address', '')
-
-#     # Get or create devotee safely
-#     devotee = None
-#     if aadhaar_last4:
-#         devotee = Devotee.objects.filter(aadhaar_last4=aadhaar_last4).first()
-#     if not devotee:
-#         devotee = Devotee.objects.filter(phone=phone).first()
-#     if devotee:
-#         updated = False
-#         if name and devotee.name != name:
-#             devotee.name = name
-#             updated = True
-#         if address and devotee.address != address:
-#             devotee.address = address
-#             updated = True
-#         if (not devotee.email or devotee.email.strip() == "") and email:
-#             devotee.email = email
-#             updated = True
-#         if updated:
-#             devotee.save()
-#     else:
-#         try:
-#             devotee = Devotee.objects.create(
-#                 phone=phone,
-#                 name=name,
-#                 aadhaar_last4=aadhaar_last4,
-#                 address=address,
-#                 email=email
-#             )
-#         except IntegrityError:
-#             devotee = Devotee.objects.get(aadhaar_last4=aadhaar_last4)
-
-#     deposit = Deposit.objects.create(
-#         devotee=devotee,
-#         amount=pending.get('amount'),
-#         quantity=pending.get('quantity'),
-#         comment_choice=pending.get('comment_choice', ''),
-#         form_filler_name=pending.get('form_filler_name', ''),
-#         diwali_year=pending.get('diwali_year', timezone.localdate().year),
-#         received_at=timezone.now(),
-#         status='HELD',
-#         token=next_token(pending.get('diwali_year', timezone.localdate().year))
+#     devotee, created = Devotee.objects.get_or_create(
+#         phone=phone,
+#         defaults={
+#             'name': name,
+#             'aadhaar_last4': aadhaar_last4,
+#             'address': address,
+#             'email': email
+#         }
 #     )
+#     if not created and (not devotee.email or devotee.email.strip() == "") and email:
+#         devotee.email = email
+#         devotee.save()
 
+#     # Create Deposit
+#     deposit = Deposit()
+#     deposit.devotee = devotee
+#     deposit.amount = pending.get('amount')
+#     deposit.quantity = pending.get('quantity')
+#     deposit.comment_choice = pending.get('comment_choice', '')
+#     deposit.form_filler_name = pending.get('form_filler_name', '')
+#     deposit.diwali_year = pending.get('diwali_year', timezone.localdate().year)
+#     deposit.received_at = timezone.now()
+#     deposit.status = 'HELD'
+#     deposit.token = next_token(deposit.diwali_year)
+#     deposit.save()
+#     print("send mail called")
+#     print(devotee.name)
+#     print(deposit.token)
+#     print(deposit.amount)
+#     print(deposit.diwali_year)
 #     # Optional: send email
 #     if devotee.email:
+#         print("send mail called")
 #         try:
 #             send_mail(
 #                 subject="Mahalakshmi Temple - Token Number",
@@ -194,8 +252,11 @@ def otp_verify(request):
 #         except Exception as e:
 #             print("Email sending failed:", e)
 
+#     # Clear session
 #     del request.session['pending_deposit']
+
 #     return redirect('receipt', token=deposit.token)
+
 
 
 # ---------------- Dashboard ----------------
@@ -213,49 +274,18 @@ def home(request):
 
 # ---------------- Receipt ----------------
 @login_required(login_url='/login/')
+# def receipt(request, token):
+#     deposit = get_object_or_404(Deposit, token=token)
+#     return render(request, 'vault/receipt.html', {'d': deposit})
 def receipt(request, token):
     deposit = get_object_or_404(Deposit, token=token)
     context = {
         'd': deposit,
-        'widget_id': '356a6568356a343732333939',
-        'token_auth': '472099TjSVarLM2l68e2193bP1'
+        'widget_id': '356a6568356a343732333939',       # MSG91 widget ID
+        'token_auth': '472099TjSVarLM2l68e2193bP1'     # MSG91 token
     }
     return render(request, 'vault/receipt.html', context)
-@login_required(login_url='/login/')
-def mark_returned(request, token):
-    deposit = get_object_or_404(Deposit, token=token)
-
-    # This will render a page with "Mark Returned with OTP" button
-    context = {
-        'd': deposit,
-        'widget_id': '356a6568356a343732333939',
-        'token_auth': '472099TjSVarLM2l68e2193bP1',
-    }
-
-    if request.method == 'POST':
-        deposit.status = 'RETURNED'
-        deposit.returned_at = timezone.now()
-        deposit.save()
-        messages.success(request, f'Deposit {deposit.token} marked as returned.')
-        return redirect('receipt', token=deposit.token)
-
-    return render(request, 'vault/mark_returned.html', context)
-
-
-# ---------------- OTP for Mark Returned ----------------
-@login_required(login_url='/login/')
-def return_send_otp(request, deposit_id):
-    deposit = get_object_or_404(Deposit, id=deposit_id)
-    context = {
-        'd': deposit,
-        'widget_id': '356a6568356a343732333939',
-        'token_auth': '472099TjSVarLM2l68e2193bP1'
-    }
-    return render(request, 'vault/return_otp.html', context)
-
-
-# ---------------- Mark Returned ----------------
-@login_required(login_url='/login/')
+    
 def return_verify_otp(request, deposit_id):
     deposit = get_object_or_404(Deposit, id=deposit_id)
     deposit.status = 'RETURNED'
@@ -263,7 +293,6 @@ def return_verify_otp(request, deposit_id):
     deposit.save()
     messages.success(request, "Deposit marked as returned successfully!")
     return redirect('receipt', token=deposit.token)
-
 
 # ---------------- Search ----------------
 @login_required(login_url='/login/')
@@ -279,6 +308,19 @@ def search(request):
     return render(request, 'vault/search.html', {'q': q, 'results': results})
 
 
+# ---------------- Mark Returned ----------------
+@login_required(login_url='/login/')
+def mark_returned(request, token):
+    deposit = get_object_or_404(Deposit, token=token)
+    if request.method == 'POST':
+        deposit.status = 'RETURNED'
+        deposit.returned_at = timezone.now()
+        deposit.save()
+        messages.success(request, f'Returned: {deposit.token}')
+        return redirect('receipt', token=deposit.token)
+    return render(request, 'vault/mark_returned.html', {'d': deposit})
+
+
 # ---------------- Report ----------------
 @login_required(login_url='/login/')
 def report(request):
@@ -289,8 +331,10 @@ def report(request):
         qs = qs.filter(diwali_year=year)
     if status:
         qs = qs.filter(status=status)
+
     total_amount = qs.aggregate(total=Sum('amount'))['total'] or 0
     total_count = qs.count()
+
     return render(request, 'vault/report.html', {
         'qs': qs[:500],
         'year': year,
@@ -310,6 +354,7 @@ def export_csv(request):
         qs = qs.filter(diwali_year=year)
     if status:
         qs = qs.filter(status=status)
+
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="deposits.csv"'
     writer = csv.writer(response)

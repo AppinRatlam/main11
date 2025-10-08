@@ -5,7 +5,7 @@ from django.core.validators import RegexValidator, MinValueValidator
 class Devotee(models.Model):
     name = models.CharField(max_length=200)
     phone = models.CharField(max_length=15)
-    aadhaar_hash = models.CharField(max_length=64, unique=True)   # ✅ SHA256 hash
+    aadhaar_hash = models.CharField(max_length=64)   # ✅ SHA256 hash
     aadhaar_last4 = models.CharField(max_length=4, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
